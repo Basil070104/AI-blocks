@@ -1,19 +1,19 @@
-from grid import GridApp
+# from grid import GridApp
 import numpy as np
 import heapq
 import math
     
 class DStarLite:
   
-  def __init__(self, graph, nodes, start_node, end_node) -> None:
+  def __init__(self, graph, start_node, end_node, cost_matrix) -> None:
     self.rhs = []
     self.g = []
     self.graph = graph
-    self.nodes = nodes
     self.start_node = start_node
     self.end_node = end_node
     self.pq = []
     self.k_m = 0
+    self.cost_matrix = cost_matrix
   
   def heuristic(self, curr, other):
     array_shape = self.graph.shape
@@ -50,17 +50,23 @@ class DStarLite:
     """
       Initialize the graph start and end with the g and rhs values
     """
-    self.rhs = [float('inf')] * len(self.nodes)
-    self.g = [float('inf')] * len(self.nodes)
+    self.rhs = [float('inf')] * self.graph.size
+    self.g = [float('inf')] * self.graph.size
+    print(len(self.rhs))
     self.rhs[self.end_node] = 0
     heapq.heappush(self.pq, (self.calculateKey(self.end_node), self.end_node))
     print(f"Initialized: pq = {self.pq}")
     
   def getCost(self, from_node, to_node):
     """Get cost between two adjacent nodes"""
-    
-    # obstacle checking here later
-    return 1
+    from_row, from_col = np.unravel_index(from_node, self.graph.shape)
+    to_row, to_col = np.unravel_index(to_node, self.graph.shape)
+  
+    if (self.cost_matrix[from_row, from_col] == float('inf') or 
+      self.cost_matrix[to_row, to_col] == float('inf')):
+      return float('inf')
+        
+    return 1  # Base movement cost  
   
   def updateVertex(self, u):
     if u != self.end_node:
@@ -100,6 +106,9 @@ class DStarLite:
                 self.updateVertex(neighbor) 
   
   def getPath(self):
+    if self.g[self.start_node] == float('inf'):
+      return []
+    
     path = [self.start_node]
     current = self.start_node
 
@@ -129,6 +138,7 @@ class DStarLite:
     path = self.getPath()
     print("Shortest Path (from start to goal):")
     print(path)
+    return path
     
 
 if __name__ == "__main__":

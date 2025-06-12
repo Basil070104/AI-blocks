@@ -1,4 +1,4 @@
 from grid import GridApp
 
-app = GridApp(25,25)
+app = GridApp(50,50)
 app.run()

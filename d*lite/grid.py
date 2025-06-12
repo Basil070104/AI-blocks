@@ -2,6 +2,7 @@ import pygame
 import numpy as np
 import sys
 from agent import Agent
+from dstarlite import DStarLite
 
 class GridApp:
     def __init__(self, grid_height: int = 20, grid_width: int = 20, *, cell_size=25):
@@ -24,6 +25,7 @@ class GridApp:
         self.START_COLOR = (0, 255, 0)  # GREEN
         self.STOP_COLOR = (255, 0, 0)  # RED
         self.AGENT_COLOR = (137, 207, 240)
+        self.PATH_COLOR = (69, 75, 27)
 
         self.color_grid = np.empty((self.GRID_HEIGHT, self.GRID_WIDTH, 3), dtype=int)
         self.color_grid[:, :] = self.LIGHT_BEIGE 
@@ -39,6 +41,54 @@ class GridApp:
         self.is_running = False
         self.start = None
         self.stop = None
+        
+        self.cost_matrix = np.ones((self.GRID_HEIGHT, self.GRID_WIDTH))
+        self.dstar_path = []
+        self.path_computed = False
+        
+    def computeDStarPath(self):
+        """Compute D* Lite path from start to stop"""
+        if self.start is None or self.stop is None:
+            return
+        
+        # Create graph for D* Lite
+        graph = np.arange(self.GRID_HEIGHT * self.GRID_WIDTH).reshape(self.GRID_HEIGHT, self.GRID_WIDTH)
+        
+        # Convert start and stop positions to node indices
+        start_col, start_row = self.start
+        stop_col, stop_row = self.stop
+        start_node = np.ravel_multi_index((start_row, start_col), graph.shape)
+        end_node = np.ravel_multi_index((stop_row, stop_col), graph.shape)
+        
+        # Run D* Lite
+        dstar = DStarLite(graph, start_node, end_node, self.cost_matrix)
+        path_indices = dstar.run()
+        
+        # (row, col) coordinates
+        self.dstar_path = []
+        for node_idx in path_indices:
+            row, col = np.unravel_index(node_idx, graph.shape)
+            self.dstar_path.append((col, row))  # (x, y) format
+        
+        self.path_computed = True
+        
+    def drawPath(self):
+        """Draw the D* Lite computed path"""
+        if not self.path_computed or not self.dstar_path:
+            return
+        
+        for _, (col, row) in enumerate(self.dstar_path):
+            if 0 <= col < self.GRID_WIDTH and 0 <= row < self.GRID_HEIGHT:
+                
+                if (col, row) != self.start and (col, row) != self.stop:
+                    path_rect = pygame.Rect(col * self.CELL_SIZE, row * self.CELL_SIZE, 
+                                        self.CELL_SIZE, self.CELL_SIZE)
+                    # Make path semi-transparent
+                    path_surface = pygame.Surface((self.CELL_SIZE, self.CELL_SIZE))
+                    path_surface.set_alpha(128)
+                    path_surface.fill(self.PATH_COLOR)
+                    self.screen.blit(path_surface, path_rect)
+                    pygame.draw.rect(self.screen, self.BORDER_COLOR, path_rect, 1)
         
     def drawAgent(self):
         # Only draw agent if start position has been set
@@ -70,7 +120,7 @@ class GridApp:
         return col, row
 
     def customButton(self, text, y_coor):
-        button_rect = pygame.Rect(self.SCREEN_WIDTH - 190, y_coor, 140, 50)
+        button_rect = pygame.Rect(self.SCREEN_WIDTH - 220, y_coor, 190, 50)
         mouse_pos = pygame.mouse.get_pos()
         color = self.DARK  
 
@@ -83,6 +133,11 @@ class GridApp:
                     self.current_color = self.START_COLOR
                 elif text == "Stop":
                     self.current_color = self.STOP_COLOR
+                elif text == "Compute Path":
+                    self.computeDStarPath()
+                elif text == "Clear Path":
+                    self.dstar_path = []
+                    self.path_computed = False
                 elif text == "Run":
                     self.is_running = not self.is_running
                     
@@ -106,7 +161,9 @@ class GridApp:
             self.customButton("Obstacle", 25)
             self.customButton("Start", 100)
             self.customButton("Stop", 175)
-            self.customButton("Run", 250)
+            self.customButton("Compute Path", 250)
+            self.customButton("Clear Path", 325)
+            self.customButton("Run", 400)
 
             # Draw grid
             for row in range(self.GRID_HEIGHT):
@@ -118,6 +175,7 @@ class GridApp:
                     pygame.draw.rect(self.screen, color, rect)
                     pygame.draw.rect(self.screen, self.BORDER_COLOR, rect, 1)
             
+            self.drawPath()
             self.drawAgent()
             
             for event in pygame.event.get():
@@ -168,8 +226,12 @@ class GridApp:
                             self.stop = (col, row)
                             self.color_grid[row, col] = self.current_color
                             
+                        elif self.current_color == self.GRAY:
+                            self.color_grid[row, col] = self.GRAY
+                            self.cost_matrix[row, col] = float('inf')
                         else:
                             self.color_grid[row, col] = self.current_color
+                            self.cost_matrix[row, col] = 1
                             
                         last_col, last_row = col, row 
                     drag = True
@@ -182,6 +244,7 @@ class GridApp:
                         if 0 <= col < self.GRID_WIDTH and 0 <= row < self.GRID_HEIGHT:
                             if (col, row) != (last_col, last_row):
                                 self.color_grid[row, col] = self.current_color
+                                self.cost_matrix[row, col] = float('inf')
                                 last_col, last_row = col, row 
                                 
             pygame.display.flip()
