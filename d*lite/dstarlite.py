@@ -136,8 +136,8 @@ class DStarLite:
     self.initialize()
     self.computeShortestPath()
     path = self.getPath()
-    print("Shortest Path (from start to goal):")
-    print(path)
+    # print("Shortest Path (from start to goal):")
+    # print(path)
     return path
     
 

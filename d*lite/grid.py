@@ -25,7 +25,7 @@ class GridApp:
         self.START_COLOR = (0, 255, 0)  # GREEN
         self.STOP_COLOR = (255, 0, 0)  # RED
         self.AGENT_COLOR = (137, 207, 240)
-        self.PATH_COLOR = (69, 75, 27)
+        self.PATH_COLOR = (80, 200, 120)
 
         self.color_grid = np.empty((self.GRID_HEIGHT, self.GRID_WIDTH, 3), dtype=int)
         self.color_grid[:, :] = self.LIGHT_BEIGE 
@@ -72,10 +72,12 @@ class GridApp:
         
         self.path_computed = True
         
+        
     def drawPath(self):
         """Draw the D* Lite computed path"""
         if not self.path_computed or not self.dstar_path:
             return
+        
         
         for _, (col, row) in enumerate(self.dstar_path):
             if 0 <= col < self.GRID_WIDTH and 0 <= row < self.GRID_HEIGHT:
@@ -88,7 +90,25 @@ class GridApp:
                     path_surface.set_alpha(128)
                     path_surface.fill(self.PATH_COLOR)
                     self.screen.blit(path_surface, path_rect)
-                    pygame.draw.rect(self.screen, self.BORDER_COLOR, path_rect, 1)
+                    # pygame.draw.rect(self.screen, self.BORDER_COLOR, path_rect, 1)
+
+    def animatePath(self):
+        if not self.path_computed or not self.dstar_path:
+            return
+
+        for _, (col, row) in enumerate(self.dstar_path):
+            if 0 <= col < self.GRID_WIDTH and 0 <= row < self.GRID_HEIGHT:
+                if (col, row) != self.start and (col, row) != self.stop:
+                    path_rect = pygame.Rect(col * self.CELL_SIZE, row * self.CELL_SIZE, 
+                                            self.CELL_SIZE, self.CELL_SIZE)
+                    path_surface = pygame.Surface((self.CELL_SIZE, self.CELL_SIZE))
+                    path_surface.set_alpha(128)
+                    path_surface.fill(self.PATH_COLOR)
+                    self.screen.blit(path_surface, path_rect)
+                    # pygame.draw.rect(self.screen, self.BORDER_COLOR, path_rect, 1)
+
+                    pygame.display.update()
+                    pygame.time.delay(30)
         
     def drawAgent(self):
         # Only draw agent if start position has been set
@@ -111,7 +131,7 @@ class GridApp:
                                     self.CELL_SIZE, self.CELL_SIZE)
             pygame.draw.rect(self.screen, self.AGENT_COLOR, current_rect)
             # Add a border to make current position more visible
-            pygame.draw.rect(self.screen, self.DARK, current_rect, 3)
+            pygame.draw.rect(self.screen, self.DARK, current_rect, 2)
 
     def mouseEvent(self):
         mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -135,6 +155,7 @@ class GridApp:
                     self.current_color = self.STOP_COLOR
                 elif text == "Compute Path":
                     self.computeDStarPath()
+                    self.animatePath()
                 elif text == "Clear Path":
                     self.dstar_path = []
                     self.path_computed = False
@@ -173,7 +194,7 @@ class GridApp:
                     rect = pygame.Rect(x, y, self.CELL_SIZE, self.CELL_SIZE)
                     color = self.color_grid[row, col]
                     pygame.draw.rect(self.screen, color, rect)
-                    pygame.draw.rect(self.screen, self.BORDER_COLOR, rect, 1)
+                    # pygame.draw.rect(self.screen, self.BORDER_COLOR, rect, 1)
             
             self.drawPath()
             self.drawAgent()
