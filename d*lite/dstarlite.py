@@ -146,5 +146,6 @@ if __name__ == "__main__":
   nodes = graph.reshape(-1)
   # print(graph)
   # print(nodes)
-  app = DStarLite(graph, nodes, 1453, 2000)
+  cost_matrix = np.ones_like(graph, dtype=float)
+  app = DStarLite(graph, 1453, 2000, cost_matrix)
   app.run()
