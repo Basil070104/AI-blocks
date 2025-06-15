@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D* Lite Grid</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        canvas {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 200px;
+        }
+        
+        button {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+            background: #364554;
+        }
+        
+        button:hover {
+            background: #6464ff;
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.active {
+            background: #6464ff;
+        }
+        
+        .instructions {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+            margin-top: 10px;
+        }
+        
+        .status {
+            font-size: 12px;
+            color: #333;
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <canvas id="gridCanvas"></canvas>
+        <div class="controls">
+            <div class="status" id="status">Ready</div>
+            
+            <button id="obstacleBtn">Obstacle</button>
+            <button id="startBtn">Start</button>
+            <button id="stopBtn">Stop</button>
+            <button id="computeBtn">Compute Path</button>
+            <button id="clearBtn">Clear Path</button>
+            <button id="runBtn">Run</button>
+            
+            <div class="instructions">
+                <strong>Instructions:</strong><br>
+                1. Set Start (green) position<br>
+                2. Set Stop (red) position<br>
+                3. Add obstacles (gray)<br>
+                4. Compute path<br>
+                5. Run and use arrow keys
+            </div>
+        </div>
+    </div>
+
+    <script src="agent.js"></script>
+    <script src="dstarlite.js"></script>
+    <script src="gridapp.js"></script>
+    <script>
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = new GridApp();
+            app.run();
+        });
+    </script>
+</body>
+</html>

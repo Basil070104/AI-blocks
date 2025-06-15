@@ -66,7 +66,7 @@ class DStarLite:
       self.cost_matrix[to_row, to_col] == float('inf')):
       return float('inf')
         
-    return 1  # Base movement cost  
+    return 1   
   
   def updateVertex(self, u):
     if u != self.end_node:
