@@ -207,18 +207,24 @@ class GridApp {
       return;
     }
 
+    // Create graph for D* Lite
     const graph = Array(this.GRID_HEIGHT).fill().map((_, i) =>
       Array(this.GRID_WIDTH).fill().map((_, j) => i * this.GRID_WIDTH + j)
     );
 
+    // Convert start and stop positions to node indices
     const [startCol, startRow] = this.start;
     const [stopCol, stopRow] = this.stop;
     const startNode = startRow * this.GRID_WIDTH + startCol;
     const endNode = stopRow * this.GRID_WIDTH + stopCol;
 
+    console.log("Converted Coordinates")
+    // Create D* Lite instance and compute path
     const dstar = new DStarLite(graph, startNode, endNode, this.costMatrix);
     const pathIndices = dstar.run();
+    console.log("Succesfully found path")
 
+    // Convert path indices to grid coordinates
     this.dstarPath = [];
     for (const nodeIdx of pathIndices) {
       const row = Math.floor(nodeIdx / this.GRID_WIDTH);
@@ -226,28 +232,32 @@ class GridApp {
       this.dstarPath.push([col, row]);
     }
 
-    this.pathComputed = true;
-    this.status.textContent = `Path computed with ${this.dstarPath.length} steps`;
-    this.animatePath();
+    // Update status and animate path
+    if (this.dstarPath.length > 0) {
+      this.pathComputed = true;
+      this.status.textContent = `Path computed with ${this.dstarPath.length} steps`;
+      this.animatePath();
+    } else {
+      this.status.textContent = 'No valid path found!';
+      this.pathComputed = false;
+    }
   }
 
   async animatePath() {
     if (!this.pathComputed || this.dstarPath.length === 0) return;
 
-    for (let i = 0; i < this.dstarPath.length; i++) {
-      this.draw();
+    // Clear previous path
+    this.draw();
 
-      // Draw path up to current point
-      for (let j = 0; j <= i; j++) {
-        const [col, row] = this.dstarPath[j];
-        if (col >= 0 && col < this.GRID_WIDTH && row >= 0 && row < this.GRID_HEIGHT) {
-          if (!(col === this.start[0] && row === this.start[1]) &&
-            !(col === this.stop[0] && row === this.stop[1])) {
-            this.drawCell(col, row, this.PATH_COLOR, 0.5);
-          }
+    // Animate path drawing
+    for (let i = 0; i < this.dstarPath.length; i++) {
+      const [col, row] = this.dstarPath[i];
+      if (col >= 0 && col < this.GRID_WIDTH && row >= 0 && row < this.GRID_HEIGHT) {
+        if (!(col === this.start[0] && row === this.start[1]) &&
+          !(col === this.stop[0] && row === this.stop[1])) {
+          this.drawCell(col, row, this.PATH_COLOR, 0.5);
         }
       }
-
       await new Promise(resolve => setTimeout(resolve, 50));
     }
   }

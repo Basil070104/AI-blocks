@@ -115,7 +115,6 @@ class GridApp:
         if self.start is None:
             return
             
-        # Draw agent history (path)
         for i, (agent_x, agent_y) in enumerate(self.agent.history[:-1]):  # Don't draw current position twice
             if 0 <= agent_x < self.GRID_WIDTH and 0 <= agent_y < self.GRID_HEIGHT:
                 agent_rect = pygame.Rect(agent_x * self.CELL_SIZE, agent_y * self.CELL_SIZE, 

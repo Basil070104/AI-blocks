@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Path Finding</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        canvas {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 200px;
+        }
+        
+        button {
+            padding: 10px 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 10 px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+            background: #364554;
+        }
+        
+        button:hover {
+            background: #6464ff;
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.active {
+            background: #6464ff;
+        }
+        
+        .mode-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+      
+        
+        .info {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+            /* margin-top: 10px;  */
+        }
+      
+        
+        .status {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 6px;
+            /* margin-top: 10px; */
+            font-weight: bold;
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <canvas id="gridCanvas" width="500" height="500"></canvas>
+        
+        <div class="controls">
+            <div class="mode-buttons">
+                <button id="obstacleBtn" class="mode-btn">🚧 Obstacle</button>
+                <button id="startBtn" class="mode-btn">🏁 Start</button>
+                <button id="stopBtn" class="mode-btn">🎯 Stop</button>
+                <button id="clearBtn" class="mode-btn">🧹 Clear</button>
+                <button id="computeBtn">🔄 Compute Path</button>
+                <button id="clearPathBtn">❌ Clear Path</button>
+                <button id="runBtn">▶️ Run Agent</button>
+                <button id="resetBtn">🔄 Reset All</button>
+            </div>
+            
+            <div class="info">
+                <h3>Instructions</h3>
+                <p>1. Click "Start" and place start point</p>
+                <p>2. Click "Stop" and place end point</p>
+                <p>3. Click "Obstacle" and draw barriers</p>
+                <p>4. Click "Compute Path" to find route</p>
+                <p>5. Use arrow keys to move agent</p>
+                
+            </div>
+            
+            <div class="status" id="status">Ready to start</div>
+        </div>
+    </div>
+
+    <script>
+        class Agent {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.history = [[x, y]];
+            }
+            
+            moveAgent(newX, newY) {
+                this.x = newX;
+                this.y = newY;
+                this.history.push([newX, newY]);
+            }
+            
+            reset(x, y) {
+                this.x = x;
+                this.y = y;
+                this.history = [[x, y]];
+            }
+        }
+
+        class PathFinder {
+            constructor(grid, startPos, endPos) {
+                this.grid = grid;
+                this.rows = grid.length;
+                this.cols = grid[0].length;
+                this.startNode = this.posToIndex(startPos);
+                this.endNode = this.posToIndex(endPos);
+                
+                if (!this.isValidPosition(startPos) || !this.isValidPosition(endPos)) {
+                    throw new Error("Invalid start or end position");
+                }
+                
+                if (this.isObstacle(startPos) || this.isObstacle(endPos)) {
+                    throw new Error("Start or end position is blocked");
+                }
+            }
+
+            posToIndex(pos) {
+                return pos[0] * this.cols + pos[1];
+            }
+
+            indexToPos(index) {
+                const row = Math.floor(index / this.cols);
+                const col = index % this.cols;
+                return [row, col];
+            }
+
+            isValidPosition(pos) {
+                const [row, col] = pos;
+                return row >= 0 && row < this.rows && col >= 0 && col < this.cols;
+            }
+
+            isObstacle(pos) {
+                const [row, col] = pos;
+                return this.grid[row][col] === 1;
+            }
+
+            getNeighbors(nodeIdx) {
+                const pos = this.indexToPos(nodeIdx);
+                const [row, col] = pos;
+                const neighbors = [];
+                const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+                for (const [dr, dc] of directions) {
+                    const newPos = [row + dr, col + dc];
+                    if (this.isValidPosition(newPos) && !this.isObstacle(newPos)) {
+                        neighbors.push(this.posToIndex(newPos));
+                    }
+                }
+                return neighbors;
+            }
+
+            getCost(fromIdx, toIdx) {
+                return 1;
+            }
+
+            heuristic(nodeA, nodeB) {
+                const posA = this.indexToPos(nodeA);
+                const posB = this.indexToPos(nodeB);
+                return Math.abs(posA[0] - posB[0]) + Math.abs(posA[1] - posB[1]);
+            }
+
+            findPath() {
+                const openSet = new Set([this.startNode]);
+                const closedSet = new Set();
+                const gScore = new Map();
+                const fScore = new Map();
+                const cameFrom = new Map();
+
+                gScore.set(this.startNode, 0);
+                fScore.set(this.startNode, this.heuristic(this.startNode, this.endNode));
+
+                let iterations = 0;
+                const MAX_ITERATIONS = this.rows * this.cols * 2;
+
+                while (openSet.size > 0 && iterations < MAX_ITERATIONS) {
+                    iterations++;
+
+                    let current = null;
+                    let lowestF = Infinity;
+
+                    for (const node of openSet) {
+                        const f = fScore.get(node) || Infinity;
+                        if (f < lowestF) {
+                            lowestF = f;
+                            current = node;
+                        }
+                    }
+
+                    if (current === null) break;
+
+                    if (current === this.endNode) {
+                        return this.reconstructPath(cameFrom, current);
+                    }
+
+                    openSet.delete(current);
+                    closedSet.add(current);
+
+                    const neighbors = this.getNeighbors(current);
+                    
+                    for (const neighbor of neighbors) {
+                        if (closedSet.has(neighbor)) continue;
+
+                        const tentativeGScore = gScore.get(current) + this.getCost(current, neighbor);
+
+                        if (!openSet.has(neighbor)) {
+                            openSet.add(neighbor);
+                        } else if (tentativeGScore >= (gScore.get(neighbor) || Infinity)) {
+                            continue;
+                        }
+
+                        cameFrom.set(neighbor, current);
+                        gScore.set(neighbor, tentativeGScore);
+                        fScore.set(neighbor, tentativeGScore + this.heuristic(neighbor, this.endNode));
+                    }
+                }
+
+                return null;
+            }
+
+            reconstructPath(cameFrom, current) {
+                const path = [];
+                let curr = current;
+                
+                while (curr !== undefined) {
+                    path.unshift(this.indexToPos(curr));
+                    curr = cameFrom.get(curr);
+                }
+                
+                return path;
+            }
+        }
+
+        class GridApp {
+            constructor() {
+                this.GRID_WIDTH = 20;
+                this.GRID_HEIGHT = 20;
+                this.CELL_SIZE = 25;
+                
+                // Colors
+                this.COLORS = {
+                    WHITE: '#ffffff',
+                    GRAY: '#36454f',
+                    DARK: '#000000',
+                    LIGHT_BEIGE: '#faf3e0',
+                    BORDER_COLOR: '#646464',
+                    SALMON: '#c97c5d',
+                    HIGHLIGHT: '#6464ff',
+                    START_COLOR: '#00ff00',
+                    STOP_COLOR: '#ff0000',
+                    AGENT_COLOR: '#89cff0',
+                    PATH_COLOR: '#50c878'
+                };
+                
+                this.canvas = document.getElementById('gridCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.canvas.width = this.CELL_SIZE * this.GRID_WIDTH;
+                this.canvas.height = this.CELL_SIZE * this.GRID_HEIGHT;
+                
+                // Initialize grid
+                this.colorGrid = Array(this.GRID_HEIGHT).fill().map(() => 
+                    Array(this.GRID_WIDTH).fill(this.COLORS.LIGHT_BEIGE)
+                );
+                this.costMatrix = Array(this.GRID_HEIGHT).fill().map(() => 
+                    Array(this.GRID_WIDTH).fill(0)
+                );
+                
+                this.currentColor = this.COLORS.LIGHT_BEIGE;
+                this.currentMode = 'obstacle';
+                this.isRunning = false;
+                this.isDragging = false;
+                
+                this.start = null;
+                this.stop = null;
+                this.agent = null;
+                this.dstarPath = [];
+                this.pathComputed = false;
+                
+                this.setupEventListeners();
+                this.updateStatus("Ready to start");
+                this.draw();
+            }
+            
+            setupEventListeners() {
+                // Mode buttons
+                document.getElementById('obstacleBtn').addEventListener('click', () => {
+                    this.setMode('obstacle');
+                });
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    this.setMode('start');
+                });
+                document.getElementById('stopBtn').addEventListener('click', () => {
+                    this.setMode('stop');
+                });
+                document.getElementById('clearBtn').addEventListener('click', () => {
+                    this.setMode('clear');
+                });
+                
+                // Action buttons
+                document.getElementById('computeBtn').addEventListener('click', () => {
+                    this.computePath();
+                });
+                document.getElementById('clearPathBtn').addEventListener('click', () => {
+                    this.clearPath();
+                });
+                document.getElementById('runBtn').addEventListener('click', () => {
+                    this.toggleRun();
+                });
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    this.resetAll();
+                });
+                
+                // Canvas events
+                this.canvas.addEventListener('mousedown', (e) => {
+                    this.isDragging = true;
+                    this.handleCanvasClick(e);
+                });
+                
+                this.canvas.addEventListener('mousemove', (e) => {
+                    if (this.isDragging && this.currentMode === 'obstacle') {
+                        this.handleCanvasClick(e);
+                    }
+                });
+                
+                this.canvas.addEventListener('mouseup', () => {
+                    this.isDragging = false;
+                });
+                
+                this.canvas.addEventListener('mouseleave', () => {
+                    this.isDragging = false;
+                });
+                
+                // Keyboard events
+                document.addEventListener('keydown', (e) => {
+                    if (this.isRunning && this.agent) {
+                        this.handleKeyPress(e);
+                    }
+                });
+            }
+            
+            setMode(mode) {
+                this.currentMode = mode;
+                
+                // Update button states
+                document.querySelectorAll('.mode-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                switch(mode) {
+                    case 'obstacle':
+                        this.currentColor = this.COLORS.GRAY;
+                        document.getElementById('obstacleBtn').classList.add('active');
+                        break;
+                    case 'start':
+                        this.currentColor = this.COLORS.START_COLOR;
+                        document.getElementById('startBtn').classList.add('active');
+                        break;
+                    case 'stop':
+                        this.currentColor = this.COLORS.STOP_COLOR;
+                        document.getElementById('stopBtn').classList.add('active');
+                        break;
+                    case 'clear':
+                        this.currentColor = this.COLORS.LIGHT_BEIGE;
+                        document.getElementById('clearBtn').classList.add('active');
+                        break;
+                }
+            }
+            
+            handleCanvasClick(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const scaleX = this.canvas.width / rect.width;
+                const scaleY = this.canvas.height / rect.height;
+                
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
+                
+                const col = Math.floor(x / this.CELL_SIZE);
+                const row = Math.floor(y / this.CELL_SIZE);
+                
+                if (col >= 0 && col < this.GRID_WIDTH && row >= 0 && row < this.GRID_HEIGHT) {
+                    if (this.currentMode === 'start') {
+                        this.setStart(col, row);
+                    } else if (this.currentMode === 'stop') {
+                        this.setStop(col, row);
+                    } else if (this.currentMode === 'obstacle') {
+                        this.setObstacle(col, row);
+                    } else if (this.currentMode === 'clear') {
+                        this.clearCell(col, row);
+                    }
+                    
+                    this.draw();
+                }
+            }
+            
+            setStart(col, row) {
+                // Clear previous start
+                if (this.start) {
+                    const [prevCol, prevRow] = this.start;
+                    this.colorGrid[prevRow][prevCol] = this.COLORS.LIGHT_BEIGE;
+                    this.costMatrix[prevRow][prevCol] = 0;
+                }
+                
+                this.start = [col, row];
+                this.colorGrid[row][col] = this.COLORS.START_COLOR;
+                this.costMatrix[row][col] = 0;
+                this.agent = new Agent(col, row);
+                this.updateStatus("Start position set");
+            }
+            
+            setStop(col, row) {
+                // Clear previous stop
+                if (this.stop) {
+                    const [prevCol, prevRow] = this.stop;
+                    this.colorGrid[prevRow][prevCol] = this.COLORS.LIGHT_BEIGE;
+                    this.costMatrix[prevRow][prevCol] = 0;
+                }
+                
+                this.stop = [col, row];
+                this.colorGrid[row][col] = this.COLORS.STOP_COLOR;
+                this.costMatrix[row][col] = 0;
+                this.updateStatus("Stop position set");
+            }
+            
+            setObstacle(col, row) {
+                // Don't overwrite start or stop
+                if ((this.start && this.start[0] === col && this.start[1] === row) ||
+                    (this.stop && this.stop[0] === col && this.stop[1] === row)) {
+                    return;
+                }
+                
+                this.colorGrid[row][col] = this.COLORS.GRAY;
+                this.costMatrix[row][col] = 1;
+            }
+            
+            clearCell(col, row) {
+                // Handle special cases
+                if (this.start && this.start[0] === col && this.start[1] === row) {
+                    this.start = null;
+                    this.agent = null;
+                }
+                if (this.stop && this.stop[0] === col && this.stop[1] === row) {
+                    this.stop = null;
+                }
+                
+                this.colorGrid[row][col] = this.COLORS.LIGHT_BEIGE;
+                this.costMatrix[row][col] = 0;
+            }
+            
+            computePath() {
+                if (!this.start || !this.stop) {
+                    this.updateStatus("Please set both start and stop positions");
+                    return;
+                }
+                
+                try {
+                    // Create binary grid for pathfinding (0 = free, 1 = obstacle)
+                    const binaryGrid = this.costMatrix.map(row => 
+                        row.map(cell => cell === 1 ? 1 : 0)
+                    );
+                    
+                    const pathfinder = new PathFinder(binaryGrid, 
+                        [this.start[1], this.start[0]], // Convert to [row, col]
+                        [this.stop[1], this.stop[0]]
+                    );
+                    
+                    const path = pathfinder.findPath();
+                    
+                    if (path) {
+                        // Convert back to [col, row] format
+                        this.dstarPath = path.map(([row, col]) => [col, row]);
+                        this.pathComputed = true;
+                        this.updateStatus(`Path found!`);
+                        this.animatePath();
+                    } else {
+                        this.dstarPath = [];
+                        this.pathComputed = false;
+                        this.updateStatus("No path found!");
+                    }
+                    
+                } catch (error) {
+                    this.updateStatus(`Error: ${error.message}`);
+                }
+                
+                this.draw();
+            }
+            
+            async animatePath() {
+                if (!this.pathComputed || this.dstarPath.length === 0) return;
+                
+                for (let i = 0; i < this.dstarPath.length; i++) {
+                    this.draw();
+                    
+                    // Draw path up to current point with animation
+                    this.ctx.globalAlpha = 0.8;
+                    for (let j = 0; j <= i; j++) {
+                        const [col, row] = this.dstarPath[j];
+                        if ((col !== this.start[0] || row !== this.start[1]) &&
+                            (col !== this.stop[0] || row !== this.stop[1])) {
+                            
+                            this.ctx.fillStyle = this.COLORS.PATH_COLOR;
+                            this.ctx.fillRect(col * this.CELL_SIZE, row * this.CELL_SIZE, 
+                                            this.CELL_SIZE, this.CELL_SIZE);
+                        }
+                    }
+                    this.ctx.globalAlpha = 1.0;
+                    
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            }
+            
+            clearPath() {
+                this.dstarPath = [];
+                this.pathComputed = false;
+                this.updateStatus("Path cleared");
+                this.draw();
+            }
+            
+            toggleRun() {
+                if (!this.agent) {
+                    this.updateStatus("Please set a start position first");
+                    return;
+                }
+                
+                this.isRunning = !this.isRunning;
+                const runBtn = document.getElementById('runBtn');
+                
+                if (this.isRunning) {
+                    runBtn.textContent = '⏸️ Pause';
+                    runBtn.style.background = 'linear-gradient(45deg, #ff6b6b, #ee5a52)';
+                    this.updateStatus("Agent running - use arrow keys to move");
+                } else {
+                    runBtn.textContent = '▶️ Run Agent';
+                    runBtn.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                    this.updateStatus("Agent paused");
+                }
+            }
+            
+            resetAll() {
+                this.colorGrid = Array(this.GRID_HEIGHT).fill().map(() => 
+                    Array(this.GRID_WIDTH).fill(this.COLORS.LIGHT_BEIGE)
+                );
+                this.costMatrix = Array(this.GRID_HEIGHT).fill().map(() => 
+                    Array(this.GRID_WIDTH).fill(0)
+                );
+                
+                this.start = null;
+                this.stop = null;
+                this.agent = null;
+                this.dstarPath = [];
+                this.pathComputed = false;
+                this.isRunning = false;
+                
+                // Reset run button
+                const runBtn = document.getElementById('runBtn');
+                runBtn.textContent = '▶️ Run Agent';
+                runBtn.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                
+                // Reset mode buttons
+                document.querySelectorAll('.mode-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                this.setMode('obstacle');
+                this.updateStatus("Grid reset - ready to start");
+                this.draw();
+            }
+            
+            handleKeyPress(e) {
+                if (!this.agent) return;
+                
+                let newX = this.agent.x;
+                let newY = this.agent.y;
+                
+                switch(e.key) {
+                    case 'ArrowUp':
+                        newY = Math.max(0, this.agent.y - 1);
+                        break;
+                    case 'ArrowDown':
+                        newY = Math.min(this.GRID_HEIGHT - 1, this.agent.y + 1);
+                        break;
+                    case 'ArrowLeft':
+                        newX = Math.max(0, this.agent.x - 1);
+                        break;
+                    case 'ArrowRight':
+                        newX = Math.min(this.GRID_WIDTH - 1, this.agent.x + 1);
+                        break;
+                    default:
+                        return;
+                }
+                
+                // Check if new position is valid (not an obstacle)
+                if (newX !== this.agent.x || newY !== this.agent.y) {
+                    if (this.costMatrix[newY][newX] !== 1) {
+                        this.agent.moveAgent(newX, newY);
+                        this.updateStatus(`Agent moved to (${newX}, ${newY})`);
+                        this.draw();
+                        
+                        // Check if reached goal
+                        if (this.stop && newX === this.stop[0] && newY === this.stop[1]) {
+                            this.updateStatus("🎉 Goal reached!");
+                            this.isRunning = false;
+                            const runBtn = document.getElementById('runBtn');
+                            runBtn.textContent = '▶️ Run Agent';
+                            runBtn.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                        }
+                    } else {
+                        this.updateStatus("Can't move - obstacle in the way!");
+                    }
+                }
+                
+                e.preventDefault();
+            }
+            
+            draw() {
+                // Clear canvas
+                this.ctx.fillStyle = this.COLORS.WHITE;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw grid
+                for (let row = 0; row < this.GRID_HEIGHT; row++) {
+                    for (let col = 0; col < this.GRID_WIDTH; col++) {
+                        const x = col * this.CELL_SIZE;
+                        const y = row * this.CELL_SIZE;
+                        
+                        this.ctx.fillStyle = this.colorGrid[row][col];
+                        this.ctx.fillRect(x, y, this.CELL_SIZE, this.CELL_SIZE);
+                        
+                        // Draw grid lines
+                        this.ctx.strokeStyle = this.COLORS.BORDER_COLOR;
+                        this.ctx.lineWidth = 0.5;
+                        this.ctx.strokeRect(x, y, this.CELL_SIZE, this.CELL_SIZE);
+                    }
+                }
+                
+                // Draw path
+                this.drawPath();
+                
+                // Draw agent
+                this.drawAgent();
+            }
+            
+            drawPath() {
+                if (!this.pathComputed || this.dstarPath.length === 0) return;
+                
+                this.ctx.globalAlpha = 0.7;
+                for (const [col, row] of this.dstarPath) {
+                    if ((this.start && col === this.start[0] && row === this.start[1]) ||
+                        (this.stop && col === this.stop[0] && row === this.stop[1])) {
+                        continue;
+                    }
+                    
+                    this.ctx.fillStyle = this.COLORS.PATH_COLOR;
+                    this.ctx.fillRect(col * this.CELL_SIZE, row * this.CELL_SIZE, 
+                                    this.CELL_SIZE, this.CELL_SIZE);
+                }
+                this.ctx.globalAlpha = 1.0;
+            }
+            
+            drawAgent() {
+                if (!this.agent) return;
+                
+                // Draw agent history (trail)
+                this.ctx.globalAlpha = 0.5;
+                for (let i = 0; i < this.agent.history.length - 1; i++) {
+                    const [x, y] = this.agent.history[i];
+                    this.ctx.fillStyle = this.COLORS.AGENT_COLOR;
+                    this.ctx.fillRect(x * this.CELL_SIZE, y * this.CELL_SIZE, 
+                                    this.CELL_SIZE, this.CELL_SIZE);
+                }
+                
+                // Draw current agent position
+                this.ctx.globalAlpha = 1.0;
+                this.ctx.fillStyle = this.COLORS.AGENT_COLOR;
+                this.ctx.fillRect(this.agent.x * this.CELL_SIZE, this.agent.y * this.CELL_SIZE, 
+                                this.CELL_SIZE, this.CELL_SIZE);
+                
+                // Add border to current position
+                this.ctx.strokeStyle = this.COLORS.DARK;
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(this.agent.x * this.CELL_SIZE, this.agent.y * this.CELL_SIZE, 
+                                  this.CELL_SIZE, this.CELL_SIZE);
+            }
+            
+            updateStatus(message) {
+                document.getElementById('status').textContent = message;
+            }
+        }
+        
+        // Initialize the application
+        const app = new GridApp();
+    </script>
+</body>
+</html>

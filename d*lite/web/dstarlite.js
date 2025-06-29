@@ -27,7 +27,16 @@ class DStarLite {
   }
 
   getCost(fromIdx, toIdx) {
+    const [fromRow, fromCol] = this.unravelIndex(fromIdx, [this.rows, this.cols]);
     const [toRow, toCol] = this.unravelIndex(toIdx, [this.rows, this.cols]);
+
+    // If either node is an obstacle, return Infinity
+    if (this.costMatrix[fromRow][fromCol] === Infinity ||
+      this.costMatrix[toRow][toCol] === Infinity) {
+      return Infinity;
+    }
+
+    // Return the cost of the destination node
     return this.costMatrix[toRow][toCol];
   }
 
@@ -39,10 +48,16 @@ class DStarLite {
     const fScore = new Map();
     const cameFrom = new Map();
 
+    // Initialize scores
     gScore.set(this.startNode, 0);
     fScore.set(this.startNode, this.heuristic(this.startNode, this.endNode));
 
-    while (openSet.size > 0) {
+    let iterations = 0;
+    const MAX_ITERATIONS = this.rows * this.cols; // Prevent infinite loops
+
+    while (openSet.size > 0 && iterations < MAX_ITERATIONS) {
+      iterations++;
+
       // Find node with lowest fScore
       let current = null;
       let lowestF = Infinity;
@@ -54,6 +69,8 @@ class DStarLite {
           current = node;
         }
       }
+
+      if (!current) break; // No valid node found
 
       if (current === this.endNode) {
         // Reconstruct path
@@ -69,11 +86,14 @@ class DStarLite {
       openSet.delete(current);
       closedSet.add(current);
 
-      for (const neighbor of this.getNeighbors(current)) {
+      // Get valid neighbors
+      const neighbors = this.getNeighbors(current);
+      console.log(`Valid neighbors ${neighbors}`)
+      for (const neighbor of neighbors) {
         if (closedSet.has(neighbor)) continue;
 
         const cost = this.getCost(current, neighbor);
-        if (cost === Infinity) continue; // Obstacle
+        if (cost === Infinity) continue; // Skip obstacles
 
         const tentativeG = (gScore.get(current) || Infinity) + cost;
 
@@ -89,6 +109,7 @@ class DStarLite {
       }
     }
 
+    console.log(`Pathfinding stopped after ${iterations} iterations`);
     return []; // No path found
   }
 
